@@ -1,15 +1,36 @@
 name: Codecov Action
-description: Analyse code
+description: Test results and coverage reporting for GitHub Actions
 
 inputs:
-  who-to-greet: # id of input
-    description: Who to greet
+  junit-xml-pattern:
+    description: Glob pattern for finding JUnit XML files
+    required: false
+    default: './**/*.junit.xml'
+  token:
+    description: GitHub token for posting PR comments
     required: true
-    default: World
+  base-branch:
+    description: Base branch to compare test results against
+    required: false
+    default: 'main'
 
 outputs:
-  time: # id of output
-    description: The time we greeted you
+  total-tests:
+    description: Total number of tests run
+  passed-tests:
+    description: Number of passed tests
+  failed-tests:
+    description: Number of failed tests
+  test-pass-rate:
+    description: Percentage of tests that passed
+  tests-added:
+    description: Number of tests added compared to base branch
+  tests-removed:
+    description: Number of tests removed compared to base branch
+  tests-fixed:
+    description: Number of tests that changed from failing to passing
+  tests-broken:
+    description: Number of tests that changed from passing to failing
 
 runs:
   using: node20
