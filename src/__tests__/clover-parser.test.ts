@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { CoverageParser } from "../parsers/coverage-parser.js";
+import { CloverParser } from "../parsers/clover-parser.js";
 
-describe("CoverageParser", () => {
+describe("CloverParser", () => {
   const sampleCloverXML = `<?xml version="1.0" encoding="UTF-8"?>
 <coverage generated="1764746556005" clover="3.2.0">
   <project timestamp="1764746556005" name="All files">
@@ -26,8 +26,8 @@ describe("CoverageParser", () => {
 </coverage>`;
 
   it("should parse Clover XML correctly", async () => {
-    const parser = new CoverageParser();
-    const result = await parser.parseXML(sampleCloverXML);
+    const parser = new CloverParser();
+    const result = await parser.parseContent(sampleCloverXML);
 
     expect(result.timestamp).toBe(1764746556005);
     expect(result.metrics.statements).toBe(10);
@@ -41,8 +41,8 @@ describe("CoverageParser", () => {
   });
 
   it("should parse files correctly", async () => {
-    const parser = new CoverageParser();
-    const result = await parser.parseXML(sampleCloverXML);
+    const parser = new CloverParser();
+    const result = await parser.parseContent(sampleCloverXML);
 
     expect(result.files).toHaveLength(2);
 
@@ -59,8 +59,8 @@ describe("CoverageParser", () => {
   });
 
   it("should parse line coverage correctly", async () => {
-    const parser = new CoverageParser();
-    const result = await parser.parseXML(sampleCloverXML);
+    const parser = new CloverParser();
+    const result = await parser.parseContent(sampleCloverXML);
 
     const mathFile = result.files[0];
     const firstLine = mathFile.lines[0];
@@ -77,8 +77,8 @@ describe("CoverageParser", () => {
   });
 
   it("should aggregate multiple coverage results", async () => {
-    const parser = new CoverageParser();
-    const result1 = await parser.parseXML(sampleCloverXML);
+    const parser = new CloverParser();
+    const result1 = await parser.parseContent(sampleCloverXML);
 
     const sampleCloverXML2 = `<?xml version="1.0" encoding="UTF-8"?>
 <coverage generated="1764746556005" clover="3.2.0">
@@ -95,9 +95,9 @@ describe("CoverageParser", () => {
   </project>
 </coverage>`;
 
-    const result2 = await parser.parseXML(sampleCloverXML2);
+    const result2 = await parser.parseContent(sampleCloverXML2);
 
-    const aggregated = CoverageParser.aggregateResults([result1, result2]);
+    const aggregated = CloverParser.aggregateResults([result1, result2]);
 
     expect(aggregated.totalStatements).toBe(15); // 10 + 5
     expect(aggregated.coveredStatements).toBe(10); // 7 + 3
@@ -124,8 +124,8 @@ describe("CoverageParser", () => {
   </project>
 </coverage>`;
 
-    const parser = new CoverageParser();
-    const result = await parser.parseXML(xmlWithNoConditionals);
+    const parser = new CloverParser();
+    const result = await parser.parseContent(xmlWithNoConditionals);
 
     expect(result.metrics.lineRate).toBe(100);
     expect(result.metrics.branchRate).toBe(0); // No branches to cover
@@ -147,12 +147,27 @@ describe("CoverageParser", () => {
   </project>
 </coverage>`;
 
-    const parser = new CoverageParser();
-    const result = await parser.parseXML(xmlWithZeroCoverage);
+    const parser = new CloverParser();
+    const result = await parser.parseContent(xmlWithZeroCoverage);
 
     expect(result.metrics.lineRate).toBe(0);
     expect(result.metrics.branchRate).toBe(0);
     expect(result.files[0].coveredStatements).toBe(0);
   });
-});
 
+  it("should detect Clover format correctly", () => {
+    const parser = new CloverParser();
+
+    expect(parser.canParse(sampleCloverXML)).toBe(true);
+    expect(parser.canParse(sampleCloverXML, "clover.xml")).toBe(true);
+
+    // Should not match Cobertura
+    const coberturaXML = `<coverage line-rate="0.5"><packages></packages></coverage>`;
+    expect(parser.canParse(coberturaXML)).toBe(false);
+  });
+
+  it("should have correct format property", () => {
+    const parser = new CloverParser();
+    expect(parser.format).toBe("clover");
+  });
+});

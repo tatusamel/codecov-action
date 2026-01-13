@@ -1,4 +1,3 @@
-import * as fs from "node:fs";
 import { parseStringPromise } from "xml2js";
 import type {
   AggregatedCoverageResults,
@@ -7,24 +6,46 @@ import type {
   FileCoverage,
   LineCoverage,
 } from "../types/coverage.js";
+import { BaseCoverageParser, type CoverageFormat } from "./base-parser.js";
 
 /**
  * Parser for Clover XML coverage format
+ * Used by: Istanbul/NYC (JS/TS), PHPUnit, OpenClover (Java)
  */
-export class CoverageParser {
+export class CloverParser extends BaseCoverageParser {
+  readonly format: CoverageFormat = "clover";
+
   /**
-   * Parse a Clover XML coverage file
+   * Check if content is Clover XML format
+   * Clover XML has a <coverage> root with a <project> child element
    */
-  async parseFile(filePath: string): Promise<CoverageResults> {
-    const content = fs.readFileSync(filePath, "utf-8");
-    return this.parseXML(content);
+  canParse(content: string, filePath?: string): boolean {
+    // Check file extension first
+    if (filePath) {
+      const ext = this.getFileExtension(filePath);
+      const fileName = filePath.toLowerCase();
+      if (fileName.endsWith("clover.xml")) {
+        return true;
+      }
+      if (ext !== "xml") {
+        return false;
+      }
+    }
+
+    // Check content structure - Clover has <coverage> with <project>
+    const hasCloverStructure =
+      content.includes("<coverage") &&
+      content.includes("<project") &&
+      content.includes("clover");
+
+    return hasCloverStructure;
   }
 
   /**
    * Parse Clover XML content
    */
-  async parseXML(xmlContent: string): Promise<CoverageResults> {
-    const result = await parseStringPromise(xmlContent, {
+  async parseContent(content: string): Promise<CoverageResults> {
+    const result = await parseStringPromise(content, {
       explicitArray: false,
       mergeAttrs: true,
     });
@@ -52,7 +73,7 @@ export class CoverageParser {
         : [];
 
     for (const file of projectFiles) {
-      files.push(this.parseFile_internal(file));
+      files.push(this.parseFileElement(file));
     }
 
     return {
@@ -87,17 +108,6 @@ export class CoverageParser {
       10
     );
 
-    const lineRate =
-      statements > 0
-        ? Number.parseFloat(((coveredStatements / statements) * 100).toFixed(2))
-        : 0;
-    const branchRate =
-      conditionals > 0
-        ? Number.parseFloat(
-            ((coveredConditionals / conditionals) * 100).toFixed(2)
-          )
-        : 0;
-
     return {
       statements,
       coveredStatements,
@@ -107,17 +117,15 @@ export class CoverageParser {
       coveredMethods,
       elements,
       coveredElements,
-      lineRate,
-      branchRate,
+      lineRate: this.calculateRate(coveredStatements, statements),
+      branchRate: this.calculateRate(coveredConditionals, conditionals),
     };
   }
 
   /**
    * Parse a single file element
    */
-  private parseFile_internal(
-    fileElement: Record<string, unknown>
-  ): FileCoverage {
+  private parseFileElement(fileElement: Record<string, unknown>): FileCoverage {
     const metrics = this.parseMetrics(
       fileElement.metrics as Record<string, string>
     );
@@ -134,10 +142,9 @@ export class CoverageParser {
       lines.push({
         lineNumber: Number.parseInt((line as Record<string, string>).num, 10),
         count: Number.parseInt((line as Record<string, string>).count, 10),
-        type: ((line as Record<string, string>).type as
-          | "stmt"
-          | "cond"
-          | "method") || "stmt",
+        type:
+          ((line as Record<string, string>).type as "stmt" | "cond" | "method") ||
+          "stmt",
         trueCount:
           (line as Record<string, string>).truecount !== undefined
             ? Number.parseInt((line as Record<string, string>).truecount, 10)
@@ -192,7 +199,9 @@ export class CoverageParser {
 
     const lineRate =
       totalStatements > 0
-        ? Number.parseFloat(((coveredStatements / totalStatements) * 100).toFixed(2))
+        ? Number.parseFloat(
+            ((coveredStatements / totalStatements) * 100).toFixed(2)
+          )
         : 0;
     const branchRate =
       totalConditionals > 0
@@ -215,3 +224,7 @@ export class CoverageParser {
   }
 }
 
+/**
+ * @deprecated Use CloverParser instead. This alias is kept for backward compatibility.
+ */
+export const CoverageParser = CloverParser;
