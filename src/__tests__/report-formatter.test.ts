@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ReportFormatter } from "../formatters/report-formatter.js";
 import type { AggregatedTestResults } from "../types/test-results.js";
+import type { AggregatedCoverageResults } from "../types/coverage.js";
 
 describe("ReportFormatter", () => {
   const formatter = new ReportFormatter();
@@ -177,5 +178,99 @@ describe("ReportFormatter", () => {
     expect(comment).toContain("**Error:** Simple failure");
     // Should not have details section for stack trace
     expect(comment.split("<details>").length - 1).toBe(0);
+  });
+
+  describe("Coverage Section", () => {
+    it("should show checkmark for high patch coverage (>= 80%) even with project misses", () => {
+      const coverageResults: AggregatedCoverageResults = {
+        totalStatements: 1000,
+        coveredStatements: 800,
+        totalConditionals: 100,
+        coveredConditionals: 80,
+        totalMethods: 50,
+        coveredMethods: 40,
+        lineRate: 80,
+        branchRate: 80,
+        files: [],
+        patchCoverageRate: 100,
+        totalMisses: 1348,
+      };
+
+      const comment = formatter.formatReport(undefined, coverageResults);
+
+      // Should show checkmark because patch coverage is >= 80%
+      expect(comment).toContain(":white_check_mark: Patch coverage is **100.00%**.");
+      // Should show project misses as separate info
+      expect(comment).toContain("Project has **1348** uncovered lines.");
+      // Should NOT have the old conflated message format
+      expect(comment).not.toContain("with **1348 lines** missing coverage");
+    });
+
+    it("should show X for low patch coverage (< 80%)", () => {
+      const coverageResults: AggregatedCoverageResults = {
+        totalStatements: 1000,
+        coveredStatements: 500,
+        totalConditionals: 100,
+        coveredConditionals: 50,
+        totalMethods: 50,
+        coveredMethods: 25,
+        lineRate: 50,
+        branchRate: 50,
+        files: [],
+        patchCoverageRate: 50,
+        totalMisses: 500,
+      };
+
+      const comment = formatter.formatReport(undefined, coverageResults);
+
+      // Should show X because patch coverage is < 80%
+      expect(comment).toContain(":x: Patch coverage is **50.00%**.");
+      // Should show project misses as separate info
+      expect(comment).toContain("Project has **500** uncovered lines.");
+    });
+
+    it("should show checkmark with no project misses message when totalMisses is 0", () => {
+      const coverageResults: AggregatedCoverageResults = {
+        totalStatements: 100,
+        coveredStatements: 100,
+        totalConditionals: 10,
+        coveredConditionals: 10,
+        totalMethods: 5,
+        coveredMethods: 5,
+        lineRate: 100,
+        branchRate: 100,
+        files: [],
+        patchCoverageRate: 100,
+        totalMisses: 0,
+      };
+
+      const comment = formatter.formatReport(undefined, coverageResults);
+
+      // Should show checkmark
+      expect(comment).toContain(":white_check_mark: Patch coverage is **100.00%**.");
+      // Should NOT mention project uncovered lines
+      expect(comment).not.toContain("uncovered lines");
+    });
+
+    it("should use lineRate as fallback when patchCoverageRate is undefined", () => {
+      const coverageResults: AggregatedCoverageResults = {
+        totalStatements: 1000,
+        coveredStatements: 850,
+        totalConditionals: 100,
+        coveredConditionals: 85,
+        totalMethods: 50,
+        coveredMethods: 42,
+        lineRate: 85,
+        branchRate: 85,
+        files: [],
+        // patchCoverageRate is undefined
+        totalMisses: 150,
+      };
+
+      const comment = formatter.formatReport(undefined, coverageResults);
+
+      // Should use lineRate (85%) which is >= 80%, so checkmark
+      expect(comment).toContain(":white_check_mark: Patch coverage is **85.00%**.");
+    });
   });
 });

@@ -141,14 +141,15 @@ export class ReportFormatter {
         ? results.patchCoverageRate.toFixed(2)
         : results.lineRate.toFixed(2);
 
-    // Line 1: Patch coverage with missing lines
+    // Line 1: Patch coverage (emoji based on patch rate, not project misses)
+    const patchEmoji = parseFloat(patchRate) >= 80 ? ":white_check_mark:" : ":x:";
+
+    // Build message with clear separation of patch coverage and project misses
+    let patchMessage = `${patchEmoji} Patch coverage is **${patchRate}%**.`;
     if (totalMissing > 0) {
-      lines.push(
-        `:x: Patch coverage is **${patchRate}%** with **${totalMissing} lines** missing coverage.`
-      );
-    } else {
-      lines.push(`:white_check_mark: Patch coverage is **${patchRate}%**.`);
+      patchMessage += ` Project has **${totalMissing}** uncovered lines.`;
     }
+    lines.push(patchMessage);
 
     // Line 2: Project coverage with comparison info
     if (results.comparison) {
