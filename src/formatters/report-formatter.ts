@@ -241,17 +241,37 @@ export class ReportFormatter {
       return [];
     }
 
-    const changedFilesSet = new Set(
-      changedFiles.map((filePath) => this.normalizeFilePath(filePath))
+    const normalizedChangedFiles = changedFiles.map((filePath) =>
+      this.normalizeFilePath(filePath)
     );
+    const changedFilesSet = new Set(normalizedChangedFiles);
 
     return allFilesWithMissing.filter((file) =>
-      changedFilesSet.has(this.normalizeFilePath(file.path))
+      this.matchesChangedFile(
+        this.normalizeFilePath(file.path),
+        normalizedChangedFiles,
+        changedFilesSet
+      )
     );
   }
 
   private normalizeFilePath(filePath: string): string {
-    return filePath.replace(/^\.?\//, "");
+    return filePath.replace(/\\/g, "/").replace(/^\.?\//, "");
+  }
+
+  private matchesChangedFile(
+    normalizedCoveragePath: string,
+    normalizedChangedFiles: string[],
+    changedFilesSet: Set<string>
+  ): boolean {
+    if (changedFilesSet.has(normalizedCoveragePath)) {
+      return true;
+    }
+
+    // Coverage parsers can emit absolute paths while PR diffs are repo-relative.
+    return normalizedChangedFiles.some((changedPath) =>
+      normalizedCoveragePath.endsWith(`/${changedPath}`)
+    );
   }
 
   /**

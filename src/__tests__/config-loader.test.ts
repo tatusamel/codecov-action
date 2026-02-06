@@ -249,6 +249,19 @@ comment: {}
       expect(config.comment.files).toBe("all");
     });
 
+    it("should handle comment: null without crashing", async () => {
+      const yaml = `
+comment: null
+`;
+      vi.spyOn(fs, "existsSync").mockReturnValue(true);
+      vi.spyOn(fs, "readFileSync").mockReturnValue(yaml);
+
+      const config = await loader.loadConfig();
+
+      expect(config.comment.enabled).toBe(true);
+      expect(config.comment.files).toBe("all");
+    });
+
     it("should default comment to disabled when not specified", async () => {
       const yaml = `
 coverage:

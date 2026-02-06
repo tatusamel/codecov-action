@@ -353,6 +353,28 @@ describe("ReportFormatter", () => {
       expect(comment).not.toContain("`unchanged-file.ts`");
     });
 
+    it("should match absolute coverage paths when filesMode is changed", () => {
+      const coverageWithAbsolutePath: AggregatedCoverageResults = {
+        ...coverageWithMissingFiles,
+        files: [
+          {
+            ...coverageWithMissingFiles.files[0],
+            path: "/home/runner/work/repo/repo/src/changed-file.ts",
+          },
+          coverageWithMissingFiles.files[1],
+        ],
+      };
+
+      const comment = formatter.formatReport(undefined, coverageWithAbsolutePath, {
+        filesMode: "changed",
+        changedFiles: ["src/changed-file.ts"],
+      });
+
+      expect(comment).toContain("Files with missing lines (1)");
+      expect(comment).toContain("`changed-file.ts`");
+      expect(comment).not.toContain("`unchanged-file.ts`");
+    });
+
     it("should hide file table when filesMode is none", () => {
       const comment = formatter.formatReport(undefined, coverageWithMissingFiles, {
         filesMode: "none",

@@ -3,6 +3,7 @@ import * as path from "node:path";
 import * as core from "@actions/core";
 import * as yaml from "js-yaml";
 import type {
+  CommentConfigObject,
   CommentConfigInput,
   CommentFilesMode,
   CodecovConfig,
@@ -115,9 +116,12 @@ export class ConfigLoader {
     files: CommentFilesMode;
   } {
     if (comment === undefined) return { enabled: false, files: "all" };
+    if (comment === null) return { enabled: true, files: "all" };
     if (typeof comment === "boolean") return { enabled: comment, files: "all" };
     // Object form (empty or future props): treat as enabled
-    const files = this.parseCommentFilesMode(comment.files);
+    const files = this.parseCommentFilesMode(
+      (comment as CommentConfigObject).files
+    );
     return { enabled: true, files };
   }
 
